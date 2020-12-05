@@ -77,4 +77,7 @@ app.post('/solve', async (req, res) => {
   res.end();
 });
 
-app.listen('5000', () => console.log('server running'));
+app.listen(
+  process.env.NODE_ENV == 'development' ? '5000' : process.env.PORT,
+  () => console.log('server running')
+);
