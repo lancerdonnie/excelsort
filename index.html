@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link
+      href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/vue-multiselect@2.1.0/dist/vue-multiselect.min.css"
+    />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>html</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      button,
+      a {
+        background-color: blue;
+        padding: 5px 10px;
+        color: white;
+      }
+      input {
+        border: 1px solid #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" class="p-4">
+      <div class="font-bold mb-4">
+        <p>Instructions</p>
+        <ol class="list-decimal">
+          <li>Upload your file</li>
+          <li>Enter the sorting column name</li>
+          <li>Select multiple similar items</li>
+          <li>Give them the replacement name</li>
+          <li>Click group</li>
+          <li>Rinse and repeat until there are no options left</li>
+          <li>Click done</li>
+          <li>Download your file</li>
+          <li>
+            Note: I'm not catching any errors so dont make any mistake or you
+            will start again
+          </li>
+        </ol>
+      </div>
+      <form
+        enctype="multipart/form-data"
+        @submit.prevent="handleSubmit"
+        class="mb-4"
+      >
+        <input ref="fileupload" id="fileupload" type="file" name="fileupload" />
+        <button type="submit">{{!uploading?"Upload":"Uploading..."}}</button>
+      </form>
+      <div class="mb-4">
+        <label for="">Column name (exact case)</label>
+        <input type="text" v-model="column" />
+        <button @click="getOptions">Submit</button>
+      </div>
+      <div v-if="column">
+        <div v-if="!list">loading</div>
+        <div v-else class="flex">
+          <div>
+            <multiselect
+              v-model="value"
+              :options="list"
+              :multiple="true"
+              :searchable="true"
+              :close-on-select="false"
+              :show-labels="false"
+              placeholder="Pick a value"
+            ></multiselect>
+            <div class="mt-4">
+              <label for="">Group name</label>
+              <input v-model="input" />
+            </div>
+            <div class="mt-4">
+              <button @click="group">Group</button>
+            </div>
+            <div class="mt-4">
+              <button @click="done">{{!solving?"Done":"Solving..."}}</button>
+            </div>
+          </div>
+          <div class="ml-4">
+            <div class="bg-blue-400 my-2" v-for="(group,name) in groups">
+              <div>{{name}}</div>
+              <div v-for="item in group">{{item}}</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <a class="mt-4 inline-block" href="Sorted.xlsx">Download</a>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/vue@2"></script> -->
+    <script src="https://unpkg.com/vue-multiselect@2.1.0"></script>
+    <script>
+      var app = new Vue({
+        el: '#app',
+        components: {
+          multiselect: window.VueMultiselect.default,
+        },
+        data: {
+          message: 'Hello Vue!',
+          list: null,
+          input: '',
+          column: '',
+          value: [],
+          groups: {},
+          solving: false,
+          uploading: false,
+        },
+        methods: {
+          getOptions() {
+            fetch('/solve?column=' + this.column)
+              .then((e) => e.json())
+              .then(function (e) {
+                app.list = e;
+              });
+          },
+          handleSubmit(e) {
+            const formData = new FormData();
+            formData.append('file', this.$refs.fileupload.files[0]);
+            this.uploading = true;
+            fetch('/upload', {
+              method: 'POST',
+              body: formData,
+            }).finally(() => (this.uploading = false));
+          },
+          group() {
+            this.list = this.list.filter((e) => !app.value.includes(e));
+            app.groups[this.input] = this.value;
+            this.value = [];
+            this.input = '';
+          },
+          done() {
+            this.solving = true;
+            fetch('/solve?column=' + this.column, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }, // this line is important, if this content-type is not set it wont work
+              body: JSON.stringify(this.groups),
+            }).finally(() => (this.solving = false));
+          },
+        },
+      });
+    </script>
+  </body>
+</html>
